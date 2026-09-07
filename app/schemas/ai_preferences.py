@@ -1,10 +1,10 @@
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class AIConstraint(BaseModel):
-    day: int = Field(ge=1, le=6)
-    hour: int = Field(ge=1, le=8)
+    day: int
+    hour: int
     type: Literal["unavailable", "preferred_not"]
 
 
