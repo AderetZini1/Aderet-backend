@@ -69,7 +69,6 @@ def parse_teacher_preferences(text: str, valid_slots: list[dict]):
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1500,
-        temperature=0,
         system=system_prompt,
         messages=[{"role": "user", "content": text}]
     )
