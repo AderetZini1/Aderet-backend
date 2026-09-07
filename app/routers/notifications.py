@@ -15,6 +15,7 @@ load_dotenv()
 class NotificationCreate(BaseModel):
     title: str
     body: str
+    teacher_ids: list[int] | None = None
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -61,9 +62,15 @@ async def send_notification(
     )
     notification_id = result.scalar()
 
-    teachers_result = await db.execute(
-        text("SELECT id, email, first_name FROM teachers WHERE is_admin = false")
-    )
+    if data.teacher_ids:
+        teachers_result = await db.execute(
+            text("SELECT id, email, first_name FROM teachers WHERE is_admin = false AND id = ANY(:ids)"),
+            {"ids": data.teacher_ids}
+        )
+    else:
+        teachers_result = await db.execute(
+            text("SELECT id, email, first_name FROM teachers WHERE is_admin = false")
+        )
     teachers = teachers_result.mappings().all()
 
     for teacher in teachers:

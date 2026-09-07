@@ -23,6 +23,7 @@ class TeacherUpdate(BaseModel):
     phone_number: Optional[str] = None
     weekly_hours_quota: Optional[int] = None
     teacher_color: Optional[str] = None
+    password: Optional[str] = None
 
 # מה שחוזר מהשרת לFrontend
 class TeacherResponse(TeacherBase):

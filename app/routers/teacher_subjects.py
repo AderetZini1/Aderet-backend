@@ -4,7 +4,7 @@ from sqlalchemy import select, delete
 from typing import List
 from app.database import get_db
 from app.models.teacher import Teacher
-from app.auth import get_current_teacher
+from app.auth import get_current_teacher, get_current_admin
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, ForeignKey
 from app.database import Base
@@ -38,6 +38,19 @@ async def get_my_subjects(
     rows = result.mappings().all()
     return [dict(r) for r in rows]
 
+@router.get("/for-teacher/{teacher_id}", response_model=List[TeacherSubjectResponse])
+async def get_subjects_for_teacher(
+    teacher_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT * FROM teacher_subjects WHERE teacher_id = :tid"),
+        {"tid": teacher_id}
+    )
+    return [dict(r) for r in result.mappings().all()]
+
 @router.post("/me/{subject_id}", response_model=TeacherSubjectResponse)
 async def add_my_subject(
     subject_id: int,
@@ -66,6 +79,40 @@ async def remove_my_subject(
     await db.execute(
         text("DELETE FROM teacher_subjects WHERE teacher_id = :tid AND subject_id = :sid"),
         {"tid": current_teacher.id, "sid": subject_id}
+    )
+    await db.commit()
+    return {"message": "Deleted"}
+
+@router.post("/for-teacher/{teacher_id}/{subject_id}", response_model=TeacherSubjectResponse)
+async def add_subject_for_teacher(
+    teacher_id: int,
+    subject_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    try:
+        result = await db.execute(
+            text("INSERT INTO teacher_subjects (teacher_id, subject_id) VALUES (:tid, :sid) RETURNING *"),
+            {"tid": teacher_id, "sid": subject_id}
+        )
+        await db.commit()
+        return dict(result.mappings().one())
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Already exists")
+
+@router.delete("/for-teacher/{teacher_id}/{subject_id}")
+async def remove_subject_for_teacher(
+    teacher_id: int,
+    subject_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    await db.execute(
+        text("DELETE FROM teacher_subjects WHERE teacher_id = :tid AND subject_id = :sid"),
+        {"tid": teacher_id, "sid": subject_id}
     )
     await db.commit()
     return {"message": "Deleted"}

@@ -6,7 +6,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models.teacher_preference import TeacherPreference
 from app.models.teacher import Teacher
-from app.auth import get_current_teacher
+from app.auth import get_current_teacher, get_current_admin
 from pydantic import BaseModel
 
 class TeacherPreferenceSchema(BaseModel):
@@ -44,6 +44,17 @@ async def get_my_preferences(
     )
     return result.scalar_one_or_none()
 
+@router.get("/for-teacher/{teacher_id}", response_model=Optional[TeacherPreferenceResponse])
+async def get_preferences_for_teacher(
+    teacher_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    result = await db.execute(
+        select(TeacherPreference).where(TeacherPreference.teacher_id == teacher_id)
+    )
+    return result.scalar_one_or_none()
+
 @router.post("/me", response_model=TeacherPreferenceResponse)
 async def save_my_preferences(
     data: TeacherPreferenceSchema,
@@ -62,6 +73,29 @@ async def save_my_preferences(
         pref = TeacherPreference(teacher_id=current_teacher.id, **data.model_dump())
         db.add(pref)
     
+    await db.commit()
+    await db.refresh(pref)
+    return pref
+
+@router.post("/for-teacher/{teacher_id}", response_model=TeacherPreferenceResponse)
+async def save_preferences_for_teacher(
+    teacher_id: int,
+    data: TeacherPreferenceSchema,
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    result = await db.execute(
+        select(TeacherPreference).where(TeacherPreference.teacher_id == teacher_id)
+    )
+    pref = result.scalar_one_or_none()
+
+    if pref:
+        for key, value in data.model_dump().items():
+            setattr(pref, key, value)
+    else:
+        pref = TeacherPreference(teacher_id=teacher_id, **data.model_dump())
+        db.add(pref)
+
     await db.commit()
     await db.refresh(pref)
     return pref
