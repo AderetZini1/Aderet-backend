@@ -34,7 +34,7 @@ router = APIRouter(prefix="/school-settings", tags=["school-settings"])
 
 @router.get("/")
 async def get_settings(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(text("SELECT * FROM school_constraints LIMIT 1"))
+    result = await db.execute(text("SELECT * FROM system_requirements LIMIT 1"))
     row = result.mappings().one_or_none()
     if not row:
         return {"active_days": [1,2,3,4,5,6], "start_time": "08:00", "breaks": [], "grade_end_times": {}}
@@ -49,18 +49,18 @@ async def save_settings(
     db: AsyncSession = Depends(get_db),
     _: Teacher = Depends(get_current_admin)
 ):
-    existing = await db.execute(text("SELECT id FROM school_constraints LIMIT 1"))
+    existing = await db.execute(text("SELECT id FROM system_requirements LIMIT 1"))
     row = existing.scalar_one_or_none()
     breaks_json = json.dumps([b.model_dump() for b in data.breaks])
     grade_end_json = json.dumps(data.grade_end_times)
     if row:
         await db.execute(
-            text("UPDATE school_constraints SET active_days=:days, start_time=:start, breaks=:breaks, grade_end_times=:get, updated_at=NOW() WHERE id=:id"),
+            text("UPDATE system_requirements SET active_days=:days, start_time=:start, breaks=:breaks, grade_end_times=:get, updated_at=NOW() WHERE id=:id"),
             {"days": data.active_days, "start": data.start_time, "breaks": breaks_json, "get": grade_end_json, "id": row}
         )
     else:
         await db.execute(
-            text("INSERT INTO school_constraints (active_days, start_time, breaks, grade_end_times) VALUES (:days, :start, :breaks, :get)"),
+            text("INSERT INTO system_requirements (active_days, start_time, breaks, grade_end_times) VALUES (:days, :start, :breaks, :get)"),
             {"days": data.active_days, "start": data.start_time, "breaks": breaks_json, "get": grade_end_json}
         )
     await db.commit()
@@ -86,7 +86,7 @@ async def save_grade_limit(
 
 @router.get("/pedagogical")
 async def get_pedagogical(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(text("SELECT * FROM system_requirements WHERE is_active=true ORDER BY created_at DESC"))
+    result = await db.execute(text("SELECT * FROM school_constraints WHERE is_active=true ORDER BY created_at DESC"))
     return [dict(r) for r in result.mappings().all()]
 
 @router.post("/pedagogical")
@@ -96,7 +96,7 @@ async def add_pedagogical(
     _: Teacher = Depends(get_current_admin)
 ):
     await db.execute(
-        text("""INSERT INTO system_requirements 
+        text("""INSERT INTO school_constraints 
             (constraint_type, subject_a_id, subject_b_id, numeric_value, weight, raw_text, is_active, source)
             VALUES (:ct, :sa, :sb, :nv, :w, :rt, true, 'manual')"""),
         {"ct": data.constraint_type, "sa": data.subject_a_id, "sb": data.subject_b_id,
@@ -112,7 +112,7 @@ async def delete_pedagogical(
     _: Teacher = Depends(get_current_admin)
 ):
     await db.execute(
-        text("UPDATE system_requirements SET is_active=false WHERE id=:id"),
+        text("UPDATE school_constraints SET is_active=false WHERE id=:id"),
         {"id": constraint_id}
     )
     await db.commit()
