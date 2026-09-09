@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.database import get_db
@@ -124,3 +124,24 @@ async def mark_as_read(
     )
     await db.commit()
     return {"message": "נסומן כנקרא"}
+
+@router.delete("/{notification_id}")
+async def delete_notification(
+    notification_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_teacher: Teacher = Depends(get_current_admin)
+):
+    result = await db.execute(
+        text("SELECT created_by FROM notifications WHERE id = :id"),
+        {"id": notification_id}
+    )
+    row = result.mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="ההתראה לא נמצאה")
+    if row["created_by"] != current_teacher.id:
+        raise HTTPException(status_code=403, detail="ניתן למחוק רק הודעות שאת/ה שלחת")
+
+    await db.execute(text("DELETE FROM teacher_notifications WHERE notification_id = :id"), {"id": notification_id})
+    await db.execute(text("DELETE FROM notifications WHERE id = :id"), {"id": notification_id})
+    await db.commit()
+    return {"message": "ההודעה נמחקה"}
