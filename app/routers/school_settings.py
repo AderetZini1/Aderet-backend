@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional, List, Dict
@@ -53,15 +54,16 @@ async def save_settings(
     row = existing.scalar_one_or_none()
     breaks_json = json.dumps([b.model_dump() for b in data.breaks])
     grade_end_json = json.dumps(data.grade_end_times)
+    start_time_obj = datetime.strptime(data.start_time, "%H:%M").time()
     if row:
         await db.execute(
             text("UPDATE system_requirements SET active_days=:days, start_time=:start, breaks=:breaks, grade_end_times=:get, updated_at=NOW() WHERE id=:id"),
-            {"days": data.active_days, "start": data.start_time, "breaks": breaks_json, "get": grade_end_json, "id": row}
+            {"days": data.active_days, "start": start_time_obj, "breaks": breaks_json, "get": grade_end_json, "id": row}
         )
     else:
         await db.execute(
             text("INSERT INTO system_requirements (active_days, start_time, breaks, grade_end_times) VALUES (:days, :start, :breaks, :get)"),
-            {"days": data.active_days, "start": data.start_time, "breaks": breaks_json, "get": grade_end_json}
+            {"days": data.active_days, "start": start_time_obj, "breaks": breaks_json, "get": grade_end_json}
         )
     await db.commit()
     return {"message": "נשמר"}
