@@ -54,7 +54,8 @@ async def save_settings(
     row = existing.scalar_one_or_none()
     breaks_json = json.dumps([b.model_dump() for b in data.breaks])
     grade_end_json = json.dumps(data.grade_end_times)
-    start_time_obj = datetime.strptime(data.start_time, "%H:%M").time()
+    _t = data.start_time.strip()
+    start_time_obj = datetime.strptime(_t, "%H:%M:%S").time() if _t.count(":") == 2 else datetime.strptime(_t, "%H:%M").time()
     if row:
         await db.execute(
             text("UPDATE system_requirements SET active_days=:days, start_time=:start, breaks=:breaks, grade_end_times=:get, updated_at=NOW() WHERE id=:id"),
