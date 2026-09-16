@@ -51,6 +51,15 @@ async def get_subjects_for_teacher(
     )
     return [dict(r) for r in result.mappings().all()]
 
+@router.get("/all", response_model=List[TeacherSubjectResponse])
+async def get_all_teacher_subjects(
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    from sqlalchemy import text
+    result = await db.execute(text("SELECT * FROM teacher_subjects"))
+    return [dict(r) for r in result.mappings().all()]
+
 @router.post("/me/{subject_id}", response_model=TeacherSubjectResponse)
 async def add_my_subject(
     subject_id: int,
