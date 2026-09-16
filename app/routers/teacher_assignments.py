@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import List
 
 from app.database import get_db
@@ -20,6 +20,50 @@ async def list_assignments(
 ):
     result = await db.execute(select(TeacherAssignment))
     return result.scalars().all()
+
+@router.get("/teacher-loads")
+async def get_teacher_loads(
+    db: AsyncSession = Depends(get_db),
+    _: Teacher = Depends(get_current_admin),
+):
+    # לכל מורה: מכסה, סכום שעות שכבר משויכות אליו, וכמה נותר.
+    # assigned_hours = סכום weekly_hours של כל הדרישות המשויכות למורה.
+    result = await db.execute(
+        select(
+            Teacher.id,
+            Teacher.first_name,
+            Teacher.last_name,
+            Teacher.weekly_hours_quota,
+            func.coalesce(func.sum(CurriculumRequirement.weekly_hours), 0).label("assigned_hours"),
+        )
+        .outerjoin(TeacherAssignment, TeacherAssignment.teacher_id == Teacher.id)
+        .outerjoin(
+            CurriculumRequirement,
+            CurriculumRequirement.id == TeacherAssignment.cur_requirement_id,
+        )
+        .group_by(
+            Teacher.id,
+            Teacher.first_name,
+            Teacher.last_name,
+            Teacher.weekly_hours_quota,
+        )
+    )
+    rows = result.all()
+
+    loads = []
+    for r in rows:
+        quota = r.weekly_hours_quota  # יכול להיות None
+        assigned = r.assigned_hours or 0
+        loads.append({
+            "teacher_id": r.id,
+            "first_name": r.first_name,
+            "last_name": r.last_name,
+            "quota": quota,                         # None = לא הוגדרה מכסה
+            "assigned_hours": assigned,
+            "remaining": (quota - assigned) if quota is not None else None,
+            "has_quota": quota is not None,
+        })
+    return loads
 
 
 @router.get("/{assignment_id}", response_model=TeacherAssignmentResponse)
