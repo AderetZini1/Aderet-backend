@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, text
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -101,3 +101,37 @@ async def update_run_note(
     await db.commit()
     await db.refresh(run)
     return run
+
+
+@router.get("/{run_id}/entries")
+async def get_run_entries(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: Teacher = Depends(get_current_teacher),
+):
+    await _get_or_404(db, run_id)
+    query = text("""
+        SELECT
+            s.id                AS id,
+            ts.day_of_week      AS day_of_week,
+            ts.hour_of_day      AS hour_of_day,
+            sub.subject_name    AS subject_name,
+            sg.group_name       AS group_name,
+            te.id               AS teacher_id,
+            te.first_name       AS teacher_first_name,
+            te.last_name        AS teacher_last_name,
+            te.teacher_color    AS teacher_color,
+            r.room_name         AS room_name
+        FROM schedule s
+        JOIN timeslots ts               ON ts.id  = s.timeslot_id
+        JOIN teacher_assignments ta     ON ta.id  = s.tea_assignment_id
+        JOIN teachers te                ON te.id  = ta.teacher_id
+        JOIN curriculum_requirements cr ON cr.id  = ta.cur_requirement_id
+        JOIN subjects sub               ON sub.id = cr.subject_id
+        JOIN student_groups sg          ON sg.id  = cr.student_group_id
+        LEFT JOIN rooms r               ON r.id   = s.room_id
+        WHERE s.run_id = :run_id
+    """)
+    result = await db.execute(query, {"run_id": run_id})
+    entries = [dict(row) for row in result.mappings().all()]
+    return {"entries": entries}
