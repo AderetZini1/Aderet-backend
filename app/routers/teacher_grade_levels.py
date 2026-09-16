@@ -40,6 +40,14 @@ async def get_grade_levels_for_teacher(
     )
     return [dict(r) for r in result.mappings().all()]
 
+@router.get("/all", response_model=List[GradeLevelResponse])
+async def get_all_grade_levels(
+    db: AsyncSession = Depends(get_db),
+    current_admin: Teacher = Depends(get_current_admin)
+):
+    result = await db.execute(text("SELECT * FROM teacher_grade_levels"))
+    return [dict(r) for r in result.mappings().all()]
+
 @router.post("/me/{grade_level}")
 async def add_grade_level(
     grade_level: int,
