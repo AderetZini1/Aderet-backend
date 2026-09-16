@@ -5,6 +5,7 @@ from typing import List
 
 from app.database import get_db
 from app.models.teacher_assignment import TeacherAssignment
+from app.models.curriculum_requirement import CurriculumRequirement
 from app.models.teacher import Teacher
 from app.schemas.teacher_assignment import TeacherAssignmentCreate, TeacherAssignmentResponse
 from app.auth import get_current_teacher, get_current_admin
@@ -45,6 +46,19 @@ async def create_assignment(
     await db.refresh(assignment)
     return assignment
 
+@router.put("/{assignment_id}", response_model=TeacherAssignmentResponse)
+async def update_assignment(
+    assignment_id: int,
+    data: TeacherAssignmentCreate,
+    db: AsyncSession = Depends(get_db),
+    _: Teacher = Depends(get_current_admin),
+):
+    assignment = await _get_or_404(db, assignment_id)
+    assignment.teacher_id = data.teacher_id
+    assignment.cur_requirement_id = data.cur_requirement_id
+    await db.commit()
+    await db.refresh(assignment)
+    return assignment
 
 @router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_assignment(
