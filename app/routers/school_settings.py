@@ -16,6 +16,7 @@ class BreakTime(BaseModel):
 class SchoolSettingsSchema(BaseModel):
     active_days: List[int]
     start_time: str
+    friday_end_time: Optional[str] = None
     breaks: List[BreakTime]
     grade_end_times: Optional[Dict[str, str]] = {}
 
@@ -38,7 +39,7 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
     result = await db.execute(text("SELECT * FROM system_requirements LIMIT 1"))
     row = result.mappings().one_or_none()
     if not row:
-        return {"active_days": [1,2,3,4,5,6], "start_time": "08:00", "breaks": [], "grade_end_times": {}}
+        return {"active_days": [1,2,3,4,5,6], "start_time": "08:00", "friday_end_time": None, "breaks": [], "grade_end_times": {}}
     d = dict(row)
     d['breaks'] = d['breaks'] if d['breaks'] else []
     d['grade_end_times'] = d.get('grade_end_times') or {}
@@ -56,15 +57,17 @@ async def save_settings(
     grade_end_json = json.dumps(data.grade_end_times)
     _t = data.start_time.strip()
     start_time_obj = datetime.strptime(_t, "%H:%M:%S").time() if _t.count(":") == 2 else datetime.strptime(_t, "%H:%M").time()
+    _f = (data.friday_end_time or "").strip()
+    friday_obj = (datetime.strptime(_f, "%H:%M:%S").time() if _f.count(":") == 2 else datetime.strptime(_f, "%H:%M").time()) if _f else None
     if row:
         await db.execute(
-            text("UPDATE system_requirements SET active_days=:days, start_time=:start, breaks=:breaks, grade_end_times=:get, updated_at=NOW() WHERE id=:id"),
-            {"days": data.active_days, "start": start_time_obj, "breaks": breaks_json, "get": grade_end_json, "id": row}
+            text("UPDATE system_requirements SET active_days=:days, start_time=:start, friday_end_time=:fri, breaks=:breaks, grade_end_times=:get, updated_at=NOW() WHERE id=:id"),
+            {"days": data.active_days, "start": start_time_obj, "fri": friday_obj, "breaks": breaks_json, "get": grade_end_json, "id": row}
         )
     else:
         await db.execute(
-            text("INSERT INTO system_requirements (active_days, start_time, breaks, grade_end_times) VALUES (:days, :start, :breaks, :get)"),
-            {"days": data.active_days, "start": start_time_obj, "breaks": breaks_json, "get": grade_end_json}
+            text("INSERT INTO system_requirements (active_days, start_time, friday_end_time, breaks, grade_end_times) VALUES (:days, :start, :fri, :breaks, :get)"),
+            {"days": data.active_days, "start": start_time_obj, "fri": friday_obj, "breaks": breaks_json, "get": grade_end_json}
         )
     await db.commit()
     return {"message": "נשמר"}
