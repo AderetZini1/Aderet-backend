@@ -48,9 +48,9 @@ async def get_active_window(
             SubmissionWindow.is_active == True,
             SubmissionWindow.start_date <= now,
             SubmissionWindow.end_date >= now
-        )
+        ).order_by(SubmissionWindow.end_date.desc())
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 @router.post("/", response_model=SubmissionWindowResponse)
 async def create_window(
@@ -97,9 +97,9 @@ async def get_my_submission_status(
             SubmissionWindow.is_active == True,
             SubmissionWindow.start_date <= now,
             SubmissionWindow.end_date >= now
-        )
+        ).order_by(SubmissionWindow.end_date.desc())
     )
-    window = window_result.scalar_one_or_none()
+    window = window_result.scalars().first()
     if not window:
         return SubmissionStatusResponse(submitted=False)
 
@@ -124,9 +124,9 @@ async def submit_my_preferences(
             SubmissionWindow.is_active == True,
             SubmissionWindow.start_date <= now,
             SubmissionWindow.end_date >= now
-        )
+        ).order_by(SubmissionWindow.end_date.desc())
     )
-    window = window_result.scalar_one_or_none()
+    window = window_result.scalars().first()
     if not window:
         raise HTTPException(status_code=400, detail="אין חלון הגשה פעיל כרגע")
 
