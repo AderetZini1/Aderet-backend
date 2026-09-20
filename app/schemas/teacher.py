@@ -7,7 +7,8 @@ class TeacherBase(BaseModel):
     last_name: str
     email: EmailStr
     phone_number: Optional[str] = None
-    weekly_hours_quota: Optional[int] = None
+    min_hours: Optional[int] = None
+    max_hours: Optional[int] = None
     teacher_color: Optional[str] = None
 
 # ליצירת מורה חדש - מה מגיע מהFrontend
@@ -21,7 +22,8 @@ class TeacherUpdate(BaseModel):
     last_name: Optional[str] = None
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
-    weekly_hours_quota: Optional[int] = None
+    min_hours: Optional[int] = None
+    max_hours: Optional[int] = None
     teacher_color: Optional[str] = None
     password: Optional[str] = None
 
