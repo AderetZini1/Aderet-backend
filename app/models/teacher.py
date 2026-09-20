@@ -12,5 +12,6 @@ class Teacher(Base):
     password_hash = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     phone_number = Column(String, nullable=True)
-    weekly_hours_quota = Column(Integer, nullable=True) 
+    min_hours = Column(Integer, nullable=True)
+    max_hours = Column(Integer, nullable=True)
     teacher_color = Column(String, nullable=True) 
