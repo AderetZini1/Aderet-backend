@@ -1,13 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional
-from uuid import UUID
 
 # בסיס - שדות משותפים
 class CurriculumRequirementBase(BaseModel):
     subject_id: int
     student_group_id: int
     weekly_hours: int  # שעות שבועיות נדרשות
-    sync_block_identity: Optional[UUID] = None  # לשיעורים מסונכרנים, NULL לשיעור רגיל
+    sync_block_identity: Optional[int] = None  # לשיעורים מסונכרנים, NULL לשיעור רגיל
 
 # ליצירת דרישה חדשה
 class CurriculumRequirementCreate(CurriculumRequirementBase):
@@ -16,7 +15,7 @@ class CurriculumRequirementCreate(CurriculumRequirementBase):
 # לעדכון דרישה
 class CurriculumRequirementUpdate(BaseModel):
     weekly_hours: Optional[int] = None
-    sync_block_identity: Optional[UUID] = None
+    sync_block_identity: Optional[int] = None
 
 # מה שחוזר מהשרת
 class CurriculumRequirementResponse(CurriculumRequirementBase):
