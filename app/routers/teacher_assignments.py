@@ -28,12 +28,14 @@ async def get_teacher_loads(
 ):
     # לכל מורה: מכסה, סכום שעות שכבר משויכות אליו, וכמה נותר.
     # assigned_hours = סכום weekly_hours של כל הדרישות המשויכות למורה.
+    # המכסה נגזרת מ-max_hours (התקרה); min_hours נשמר לתצוגה עתידית.
     result = await db.execute(
         select(
             Teacher.id,
             Teacher.first_name,
             Teacher.last_name,
-            Teacher.weekly_hours_quota,
+            Teacher.min_hours,
+            Teacher.max_hours,
             func.coalesce(func.sum(CurriculumRequirement.weekly_hours), 0).label("assigned_hours"),
         )
         .outerjoin(TeacherAssignment, TeacherAssignment.teacher_id == Teacher.id)
@@ -45,19 +47,22 @@ async def get_teacher_loads(
             Teacher.id,
             Teacher.first_name,
             Teacher.last_name,
-            Teacher.weekly_hours_quota,
+            Teacher.min_hours,
+            Teacher.max_hours,
         )
     )
     rows = result.all()
 
     loads = []
     for r in rows:
-        quota = r.weekly_hours_quota  # יכול להיות None
+        quota = r.max_hours  # המכסה = התקרה; יכול להיות None
         assigned = r.assigned_hours or 0
         loads.append({
             "teacher_id": r.id,
             "first_name": r.first_name,
             "last_name": r.last_name,
+            "min_hours": r.min_hours,
+            "max_hours": r.max_hours,
             "quota": quota,                         # None = לא הוגדרה מכסה
             "assigned_hours": assigned,
             "remaining": (quota - assigned) if quota is not None else None,
