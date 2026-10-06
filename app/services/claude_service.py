@@ -58,7 +58,21 @@ Rules for constraints/hours:
 - hour: MUST be an integer. Only use hour values valid for that specific day, per the schedule above.
   Never use null for hour. If the teacher mentions a whole day without a specific hour, create one
   constraint for EVERY valid hour of that day, all with the same type.
-- constraint type: "unavailable" or "preferred_not". "cannot work" -> unavailable, "prefer not to" -> preferred_not.
+- constraint type: "unavailable", "preferred_not" or "free".
+  "cannot work" -> unavailable, "prefer not to" -> preferred_not.
+  "free" means the teacher wants to CANCEL / CLEAR a restriction and be available again on that slot
+  (e.g. "תבטלי את החסימה ביום שני", "ביום שני אני כן יכולה", "החזירי את יום שני לפנוי",
+  "שיניתי את דעתי לגבי יום שני").
+- Use "free" ONLY when the teacher explicitly takes back / cancels / releases a restriction.
+  Never output "free" just because a slot was not mentioned.
+- You do NOT know which slots are currently marked, and that is fine: for every slot the teacher wants
+  cleared, output a "free" constraint (for a whole day: one per valid hour of that day). The system
+  ignores slots that are already free.
+- If the teacher REPLACES one restriction with another (e.g. "במקום יום שני אני לא יכולה ביום שלישי",
+  "שיניתי את דעתי: ביום שני אני כן יכולה, ובמקום זה לא יכולה ביום שלישי"), output BOTH: "free" for every
+  valid hour of the day being released AND "unavailable" (or "preferred_not") for every valid hour of the
+  day being restricted.
+- "Cancel everything" / "תבטלי את כל האילוצים" -> "free" for every valid hour of every day in the schedule above.
 
 Rules for subjects:
 - The teacher may use abbreviations, nicknames, or slightly different phrasing for a subject
