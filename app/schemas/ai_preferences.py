@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 class AIConstraint(BaseModel):
     day: int = Field(ge=1, le=6)
     hour: int
-    type: Literal["unavailable", "preferred_not"]
+    type: Literal["unavailable", "preferred_not", "free"]
 
 
 class AIPreferences(BaseModel):
