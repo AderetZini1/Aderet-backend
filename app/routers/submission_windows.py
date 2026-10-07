@@ -77,6 +77,12 @@ async def delete_window(
     window = result.scalar_one_or_none()
     if not window:
         raise HTTPException(status_code=404, detail="Window not found")
+    # teacher_submissions has an FK to submission_windows (no ON DELETE CASCADE),
+    # so the submission records must be removed before the window itself
+    await db.execute(
+        text("DELETE FROM teacher_submissions WHERE submission_window_id = :wid"),
+        {"wid": window_id}
+    )
     await db.delete(window)
     await db.commit()
     return {"message": "Deleted"}
