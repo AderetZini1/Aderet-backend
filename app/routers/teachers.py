@@ -36,6 +36,25 @@ async def create_teacher(
     db: AsyncSession = Depends(get_db),
     _: Teacher = Depends(get_current_admin),
 ):
+
+    # Duplicate checks (DB has UNIQUE on both) - return a clear 409 per field
+    errors = {}
+    dup_identity = await db.execute(
+        select(Teacher.id).where(Teacher.teacher_identity == data.teacher_identity)
+    )
+    if dup_identity.first() is not None:
+        errors["teacher_identity"] = "קיים מורה עם מספר ת.ז זהה"
+    dup_email = await db.execute(
+        select(Teacher.id).where(Teacher.email == data.email)
+    )
+    if dup_email.first() is not None:
+        errors["email"] = "קיים מורה עם כתובת אימייל זהה"
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"field_errors": errors},
+        )
+    
     teacher = Teacher(
         teacher_identity=data.teacher_identity,
         first_name=data.first_name,
@@ -69,6 +88,18 @@ async def update_teacher(
 
     teacher = await _get_or_404(db, teacher_id)
     update_data = data.model_dump(exclude_unset=True)
+    if "email" in update_data and update_data["email"] != teacher.email:
+        dup_email = await db.execute(
+            select(Teacher.id).where(
+                Teacher.email == update_data["email"],
+                Teacher.id != teacher_id,
+            )
+        )
+        if dup_email.first() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"field_errors": {"email": "קיים מורה עם כתובת אימייל זהה"}},
+            )
     if "password" in update_data:
         pwd = update_data.pop("password")
         print(f"[DEBUG] password branch hit, pwd={pwd!r}")   # <-- add this
