@@ -36,6 +36,14 @@ async def create_room(
     db: AsyncSession = Depends(get_db),
     _: Teacher = Depends(get_current_admin),
 ):
+
+    dup = await db.execute(select(Room.id).where(Room.room_name == data.room_name))
+    if dup.first() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"field_errors": {"room_name": "קיים חדר בעל אותו שם"}},
+        )
+
     room = Room(room_name=data.room_name, capacity=data.capacity)
     db.add(room)
     await db.commit()
@@ -51,7 +59,18 @@ async def update_room(
     _: Teacher = Depends(get_current_admin),
 ):
     room = await _get_or_404(db, room_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    new_name = update_data.get("room_name")
+    if new_name is not None and new_name != room.room_name:
+        dup = await db.execute(
+            select(Room.id).where(Room.room_name == new_name, Room.id != room_id)
+        )
+        if dup.first() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"field_errors": {"room_name": "קיים חדר בעל אותו שם"}},
+            )
+    for field, value in update_data.items():
         setattr(room, field, value)
     await db.commit()
     await db.refresh(room)
