@@ -36,6 +36,14 @@ async def create_subject(
     db: AsyncSession = Depends(get_db),
     _: Teacher = Depends(get_current_admin),
 ):
+
+    dup = await db.execute(select(Subject.id).where(Subject.subject_name == data.subject_name))
+    if dup.first() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"field_errors": {"subject_name": "קיים מקצוע בעל אותו שם"}},
+        )
+    
     subject = Subject(subject_name=data.subject_name, required_room_id=data.required_room_id)
     db.add(subject)
     await db.commit()
@@ -51,7 +59,18 @@ async def update_subject(
     _: Teacher = Depends(get_current_admin),
 ):
     subject = await _get_or_404(db, subject_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    new_name = update_data.get("subject_name")
+    if new_name is not None and new_name != subject.subject_name:
+        dup = await db.execute(
+            select(Subject.id).where(Subject.subject_name == new_name, Subject.id != subject_id)
+        )
+        if dup.first() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"field_errors": {"subject_name": "קיים מקצוע בעל אותו שם"}},
+            )
+    for field, value in update_data.items():
         setattr(subject, field, value)
     await db.commit()
     await db.refresh(subject)
