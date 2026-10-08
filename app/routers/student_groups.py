@@ -36,6 +36,25 @@ async def create_student_group(
     db: AsyncSession = Depends(get_db),
     _: Teacher = Depends(get_current_admin),
 ):
+
+    errors = {}
+    dup_name = await db.execute(
+        select(StudentGroup.id).where(StudentGroup.group_name == data.group_name)
+    )
+    if dup_name.first() is not None:
+        errors["group_name"] = "קיימת קבוצה בעלת אותו שם"
+    dup_room = await db.execute(
+        select(StudentGroup.group_name).where(StudentGroup.home_room_id == data.home_room_id)
+    )
+    owner = dup_room.first()
+    if owner is not None:
+        errors["home_room_id"] = f"חדר הבית כבר משויך לקבוצה {owner[0]}"
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"field_errors": errors},
+        )
+    
     group = StudentGroup(
         group_name=data.group_name,
         student_count=data.student_count,
@@ -55,7 +74,33 @@ async def update_student_group(
     _: Teacher = Depends(get_current_admin),
 ):
     group = await _get_or_404(db, group_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    errors = {}
+    new_name = update_data.get("group_name")
+    if new_name is not None and new_name != group.group_name:
+        dup_name = await db.execute(
+            select(StudentGroup.id).where(
+                StudentGroup.group_name == new_name, StudentGroup.id != group_id
+            )
+        )
+        if dup_name.first() is not None:
+            errors["group_name"] = "קיימת קבוצה בעלת אותו שם"
+    new_room = update_data.get("home_room_id")
+    if new_room is not None and new_room != group.home_room_id:
+        dup_room = await db.execute(
+            select(StudentGroup.group_name).where(
+                StudentGroup.home_room_id == new_room, StudentGroup.id != group_id
+            )
+        )
+        owner = dup_room.first()
+        if owner is not None:
+            errors["home_room_id"] = f"חדר הבית כבר משויך לקבוצה {owner[0]}"
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"field_errors": errors},
+        )
+    for field, value in update_data.items():
         setattr(group, field, value)
     await db.commit()
     await db.refresh(group)
