@@ -47,6 +47,7 @@ async def google_login(payload: GoogleTokenRequest, db: AsyncSession = Depends(g
     return {
         "access_token": access_token,
         "token_type": "bearer",
+        "id": teacher["id"],
         "is_admin": teacher["is_admin"],
         "first_name": teacher["first_name"],
         "last_name": teacher["last_name"],
